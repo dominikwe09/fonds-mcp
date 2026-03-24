@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(journalctl:*)",
+      "Bash(nginx -t)",
+      "Bash(systemctl reload:*)",
+      "Bash(systemctl restart:*)",
+      "Bash(systemctl status:*)",
+      "Bash(curl -s -H \"Accept: text/event-stream\" -H \"Host: mcp.weinkamp.de\" --max-time 5 http://127.0.0.1:8000/sse)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(curl:*)",
+      "Bash(crontab:*)",
+      "WebSearch",
+      "WebFetch(domain:www.union-investment.de)",
+      "WebFetch(domain:www.ruv.de)",
+      "WebFetch(domain:cdn.dam.union-investment.de)",
+      "mcp__claude_ai_Fonds_MCP__fonds_liste",
+      "Bash(grep -oP 'api[^\"\"\"\"<>\\\\s]{5,50}json' /tmp/t4.html)",
+      "Bash(1 echo:*)",
+      "Bash(systemctl stop:*)",
+      "Bash(/opt/fonds-mcp/venv/bin/python3 -c \"\nimport chromadb\ndb = chromadb.PersistentClient\\(path='/opt/fonds-mcp/db'\\)\ntry:\n    db.delete_collection\\('fonds'\\)\n    print\\('Alte Collection gelöscht'\\)\nexcept Exception as e:\n    print\\(f'Collection nicht vorhanden \\(OK\\): {e}'\\)\n\")",
+      "Bash(/opt/fonds-mcp/venv/bin/python3 scraper.py 2>&1)",
+      "Bash(systemctl is-active:*)"
+    ]
+  }
+}
