@@ -1,0 +1,51 @@
+[
+  {
+    "name": "ZinsFix Express StepDown 4 26/28: Basiswert EURO STOXX 50 (ETF-Liefermöglichkeit)",
+    "risikoklasse": 3,
+    "typ": "zertifikat",
+    "datei": "ZinsFix Express Deep StepDown 4_26_28_Baiswert EuroStoxx50.pdf",
+    "emittent": "DZ BANK AG"
+  },
+  {
+    "name": "ZinsFix Express StepDown 4 26/29: Basiswert EURO STOXX 50 (ETF-Liefermöglichkeit)",
+    "risikoklasse": 3,
+    "typ": "zertifikat",
+    "datei": "ZinsFix Express Deep StepDown 4_26_29_Baiswert EuroStoxx50.pdf",
+    "emittent": "DZ BANK AG"
+  },
+  {
+    "name": "ZinsFix Express Deep StepDown 4 26/30: Basiswert EURO STOXX 50 (ETF-Liefermöglichkeit)",
+    "risikoklasse": 3,
+    "typ": "zertifikat",
+    "datei": "ZinsFix Express Deep StepDown 4_26_30_Baiswert EuroStoxx50.pdf",
+    "emittent": "DZ BANK AG"
+  },
+  {
+    "name": "ZinsFix Express StepDown 4 26/29: Weltweiter Index mit Nachhaltigkeitsbezug (ETF-Liefermöglichkeit)",
+    "risikoklasse": 3,
+    "typ": "zertifikat",
+    "datei": "ZinsFix Express Step Down 4_26_29_weltweiter Index_mit ETF.pdf",
+    "emittent": "DZ BANK AG"
+  },
+  {
+    "name": "ZinsFix Express StepDown 4 26: Deutscher Index mit Nachhaltigkeitsbezug",
+    "risikoklasse": 3,
+    "typ": "zertifikat",
+    "datei": "ZinsFix Express Step Down 4_26_deutscher Index.pdf",
+    "emittent": "DZ BANK AG"
+  },
+  {
+    "name": "ZinsFix Express StepDown ST 4 26/30: Deutscher Index mit Nachhaltigkeitsbezug",
+    "risikoklasse": 3,
+    "typ": "zertifikat",
+    "datei": "ZinsFix Express Step Down ST 4_26_30.pdf",
+    "emittent": "DZ BANK AG"
+  },
+  {
+    "name": "ZinsFix Express StepDown ST 4 26/30: Weltweiter Index mit Nachhaltigkeitsbezug (ETF-Liefermöglichkeit)",
+    "risikoklasse": 3,
+    "typ": "zertifikat",
+    "datei": "ZinsFix Express Step Down ST 4_26_30_mit ETF.pdf",
+    "emittent": "DZ BANK AG"
+  }
+]

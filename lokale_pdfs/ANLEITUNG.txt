@@ -1,0 +1,5 @@
+Um neue Zertifikate hinzuzufügen:
+1. PDF nach /opt/fonds-mcp/lokale_pdfs/ kopieren (z.B. per scp)
+2. Eintrag in metadaten.json ergänzen
+3. python /opt/fonds-mcp/scraper.py ausführen
+4. Fertig – Zertifikat ist sofort im MCP-Server verfügbar

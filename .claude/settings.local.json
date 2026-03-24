@@ -1,4 +1,17 @@
 {
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /opt/fonds-mcp && git add -A && git diff --cached --quiet || (git commit -m \"auto: update after iteration\" && git push) 2>/dev/null || true",
+            "statusMessage": "Pushing to GitHub..."
+          }
+        ]
+      }
+    ]
+  },
   "permissions": {
     "allow": [
       "Bash(journalctl:*)",

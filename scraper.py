@@ -15,16 +15,25 @@ Jeder Fonds enthält: Name, ISIN, WKN, Risikoklasse (int), PIF-URL.
 
 import asyncio
 import hashlib
+import json
 import logging
 import re
 import sys
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
 
 import fitz
 import httpx
 import chromadb
 from sentence_transformers import SentenceTransformer
+
+try:
+    import pytesseract
+    from PIL import Image
+    OCR_VERFUEGBAR = True
+except ImportError:
+    OCR_VERFUEGBAR = False
 
 # ─── Konfiguration ─────────────────────────────────────────────────────────────
 
@@ -129,6 +138,28 @@ def validiere_produktinformation(text: str) -> bool:
     return any(kw.lower() in text.lower() for kw in PFLICHT_KEYWORDS)
 
 
+def extrahiere_text_mit_ocr(pdf_bytes: bytes) -> str:
+    """Extrahiert Text aus bildbasierten PDFs via OCR (Tesseract)."""
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    seiten_texte = []
+    for seite in doc:
+        mat = fitz.Matrix(2.0, 2.0)
+        pix = seite.get_pixmap(matrix=mat)
+        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+        seiten_texte.append(pytesseract.image_to_string(img, lang="deu"))
+    return " ".join(seiten_texte)
+
+
+def extrahiere_text(pdf_bytes: bytes) -> str:
+    """Extrahiert Text aus PDF — direkt, bei Bilddokumenten mit OCR-Fallback."""
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    text = " ".join(seite.get_text() for seite in doc).strip()
+    if not text and OCR_VERFUEGBAR:
+        log.info("  Kein direkter Text — starte OCR...")
+        text = extrahiere_text_mit_ocr(pdf_bytes)
+    return text
+
+
 def hat_sich_geaendert(collection, name: str, neuer_hash: str) -> bool:
     vorhandene = collection.get(where={"name": name}, limit=1)
     if not vorhandene["ids"]:
@@ -213,8 +244,8 @@ async def indexiere_fonds(
 
         # Schritt 4: PDF parsen
         try:
-            doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-            text = " ".join(seite.get_text() for seite in doc)
+            text = extrahiere_text(pdf_bytes)
+            n_seiten = fitz.open(stream=pdf_bytes, filetype="pdf").page_count
         except Exception as e:
             log.error(f"  FEHLER beim PDF-Lesen: {e}")
             return "fehler"
@@ -224,7 +255,7 @@ async def indexiere_fonds(
             log.warning(f"  WARNUNG: Kein Produktinformationsblatt-Inhalt – überspringe.")
             return "fehler"
 
-        log.info(f"  RK{risikoklasse} | {len(doc)} Seiten | {pdf_url.split('/')[-1][:40]}")
+        log.info(f"  RK{risikoklasse} | {n_seiten} Seiten | {pdf_url.split('/')[-1][:40]}")
 
         # Schritt 6: Alt-Einträge löschen, neu chunken + embedden
         loesche_fonds(collection, name)
@@ -246,7 +277,108 @@ async def indexiere_fonds(
         log.info(f"  OK: {len(chunks)} Chunks gespeichert.")
         return "neu"
 
+# ─── Lokale PDFs indexieren ────────────────────────────────────────────────────
+
+async def indexiere_lokale_pdfs(model: SentenceTransformer, collection) -> dict:
+    """
+    Liest alle PDFs aus /opt/fonds-mcp/lokale_pdfs/ ein,
+    liest Metadaten aus metadaten.json und indexiert sie in ChromaDB.
+
+    Unterschied zu Online-PDFs:
+    - Kein Download, direkt vom Dateisystem lesen
+    - url-Feld enthält "lokal:<dateiname>" statt https://
+    - typ "zertifikat" in Metadaten damit fonds_suchen es unterscheiden kann
+    """
+    stats = {"neu": 0, "unveraendert": 0, "fehler": 0}
+    metadaten_pfad = Path("/opt/fonds-mcp/lokale_pdfs/metadaten.json")
+    if not metadaten_pfad.exists():
+        log.info("Keine metadaten.json gefunden, überspringe lokale PDFs.")
+        return stats
+
+    with open(metadaten_pfad, encoding="utf-8") as f:
+        metadaten = json.load(f)
+
+    log.info(f"Lokale PDFs: {len(metadaten)} Einträge in metadaten.json")
+
+    for eintrag in metadaten:
+        name = eintrag["name"]
+        pdf_pfad = Path("/opt/fonds-mcp/lokale_pdfs") / eintrag["datei"]
+
+        if not pdf_pfad.exists():
+            log.warning(f"  WARNUNG: {eintrag['datei']} nicht gefunden, überspringe.")
+            stats["fehler"] += 1
+            continue
+
+        log.info(f"Prüfe lokal: {name}")
+
+        # Hash-Check
+        pdf_bytes = pdf_pfad.read_bytes()
+        pdf_hash = hashlib.md5(pdf_bytes).hexdigest()
+        if not hat_sich_geaendert(collection, name, pdf_hash):
+            log.info(f"  Unverändert – überspringe.")
+            stats["unveraendert"] += 1
+            continue
+
+        # PDF parsen
+        try:
+            text = extrahiere_text(pdf_bytes)
+            n_seiten = fitz.open(stream=pdf_bytes, filetype="pdf").page_count
+        except Exception as e:
+            log.error(f"  FEHLER beim PDF-Lesen: {e}")
+            stats["fehler"] += 1
+            continue
+
+        risikoklasse = int(eintrag["risikoklasse"])
+        log.info(f"  RK{risikoklasse} | {n_seiten} Seiten | {eintrag['datei']}")
+
+        # Alt-Einträge löschen, neu chunken + embedden
+        loesche_fonds(collection, name)
+        chunks = text_zu_chunks(text)
+        for i, chunk in enumerate(chunks):
+            embedding = model.encode(chunk).tolist()
+            collection.add(
+                ids=[f"{name}_{i}"],
+                embeddings=[embedding],
+                documents=[chunk],
+                metadatas=[{
+                    "name": name,
+                    "risikoklasse": risikoklasse,
+                    "typ": eintrag.get("typ", "fonds"),
+                    "emittent": eintrag.get("emittent", "Union Investment"),
+                    "url": f"lokal:{eintrag['datei']}",
+                    "hash": pdf_hash,
+                }],
+            )
+        log.info(f"  OK: {len(chunks)} Chunks gespeichert.")
+        stats["neu"] += 1
+
+    return stats
+
 # ─── Hauptprogramm ────────────────────────────────────────────────────────────
+
+async def indexiere_union_investment(model: SentenceTransformer, collection) -> dict:
+    stats = {"neu": 0, "unveraendert": 0, "fehler": 0}
+    async with httpx.AsyncClient(
+        headers={"User-Agent": "FondsMCP-Scraper/3.0"},
+        follow_redirects=False,
+    ) as client:
+        fonds_liste = await hole_alle_fonds_von_api(client)
+        if not fonds_liste:
+            log.error("Keine Fonds von API erhalten – überspringe Union Investment.")
+            return stats
+
+        log.info(f"Indexiere {len(fonds_liste)} Fonds (max. {MAX_GLEICHZEITIG} parallel)...")
+        semaphore = asyncio.Semaphore(MAX_GLEICHZEITIG)
+        aufgaben = [
+            indexiere_fonds(fonds, model, collection, client, semaphore)
+            for fonds in fonds_liste
+        ]
+        ergebnisse = await asyncio.gather(*aufgaben)
+
+    for e in ergebnisse:
+        stats[e] += 1
+    return stats
+
 
 async def indexiere_alle():
     setup_logging()
@@ -259,26 +391,11 @@ async def indexiere_alle():
     db = chromadb.PersistentClient(path=DB_PATH)
     collection = db.get_or_create_collection("fonds")
 
-    async with httpx.AsyncClient(
-        headers={"User-Agent": "FondsMCP-Scraper/3.0"},
-        follow_redirects=False,
-    ) as client:
-        fonds_liste = await hole_alle_fonds_von_api(client)
-        if not fonds_liste:
-            log.error("Keine Fonds von API erhalten – Abbruch.")
-            return
+    stats_ui = await indexiere_union_investment(model, collection)
+    stats_lokal = await indexiere_lokale_pdfs(model, collection)
 
-        log.info(f"Indexiere {len(fonds_liste)} Fonds (max. {MAX_GLEICHZEITIG} parallel)...")
-        semaphore = asyncio.Semaphore(MAX_GLEICHZEITIG)
-        aufgaben = [
-            indexiere_fonds(fonds, model, collection, client, semaphore)
-            for fonds in fonds_liste
-        ]
-        ergebnisse = await asyncio.gather(*aufgaben)
-
-    stats = {"neu": 0, "unveraendert": 0, "fehler": 0}
-    for e in ergebnisse:
-        stats[e] += 1
+    # Gesamtstatistik
+    stats = {k: stats_ui[k] + stats_lokal[k] for k in stats_ui}
 
     dauer = (datetime.now() - start).seconds
     log.info("-" * 60)

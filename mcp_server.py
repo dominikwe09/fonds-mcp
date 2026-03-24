@@ -21,15 +21,15 @@ class FondsSuchenInput(BaseModel):
     )
     min_risikoklasse: int = Field(
         default=1,
-        description="Mindest-Risikoklasse des Fonds (1=sehr konservativ, 7=sehr spekulativ). Z.B. 3 um nur RK3+ zu bekommen.",
+        description="Mindest-Risikoklasse des Fonds (1=sehr konservativ, 5=sehr spekulativ). Z.B. 3 um nur RK3+ zu bekommen.",
         ge=1,
-        le=7
+        le=5
     )
     max_risikoklasse: int = Field(
         default=5,
-        description="Maximale Risikoklasse des Fonds (1=sehr konservativ, 7=sehr spekulativ)",
+        description="Maximale Risikoklasse des Fonds (1=sehr konservativ, 5=sehr spekulativ)",
         ge=1,
-        le=7
+        le=5
     )
     anzahl_ergebnisse: int = Field(
         default=5,
@@ -45,7 +45,7 @@ class FondsListeInput(BaseModel):
         default=None,
         description="Filtert nach genauer Risikoklasse. Ohne Angabe werden alle Fonds gelistet.",
         ge=1,
-        le=7
+        le=5
     )
 
 # Modell und DB einmalig beim Programmstart laden (nicht pro Verbindung!)
@@ -64,10 +64,14 @@ mcp = FastMCP("fonds_mcp", lifespan=app_lifespan, host="127.0.0.1", port=8000)
 
 def format_ergebnis(doc: str, meta: dict) -> str:
     """Formatiert einen Suchtreffer einheitlich."""
+    if meta["url"].startswith("lokal:"):
+        quelle = f"Lokales Dokument: {meta['url'].replace('lokal:', '')}"
+    else:
+        quelle = f"Produktblatt: {meta['url']}"
     return (
         f"### {meta['name']}\n"
         f"**Risikoklasse:** {meta['risikoklasse']}\n"
-        f"**Produktblatt:** {meta['url']}\n\n"
+        f"**Quelle:** {quelle}\n\n"
         f"{doc[:500]}\n"
     )
 
@@ -89,8 +93,8 @@ async def fonds_suchen(params: FondsSuchenInput, ctx: Context) -> str:
     Args:
         params (FondsSuchenInput): Validierte Eingabe mit:
             - anfrage (str): Kundenprofil-Beschreibung
-            - min_risikoklasse (int): Mindest-Risikoklasse 1-7
-            - max_risikoklasse (int): Maximale Risikoklasse 1-7
+            - min_risikoklasse (int): Mindest-Risikoklasse 1-5
+            - max_risikoklasse (int): Maximale Risikoklasse 1-5
             - anzahl_ergebnisse (int): Gewünschte Trefferzahl
 
     Returns:
