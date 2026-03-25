@@ -1,17 +1,4 @@
 {
-  "hooks": {
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "cd /opt/fonds-mcp && git add -A && git diff --cached --quiet || (git commit -m \"auto: update after iteration\" && git push) 2>/dev/null || true",
-            "statusMessage": "Pushing to GitHub..."
-          }
-        ]
-      }
-    ]
-  },
   "permissions": {
     "allow": [
       "Bash(journalctl:*)",
@@ -33,7 +20,23 @@
       "Bash(systemctl stop:*)",
       "Bash(/opt/fonds-mcp/venv/bin/python3 -c \"\nimport chromadb\ndb = chromadb.PersistentClient\\(path='/opt/fonds-mcp/db'\\)\ntry:\n    db.delete_collection\\('fonds'\\)\n    print\\('Alte Collection gelöscht'\\)\nexcept Exception as e:\n    print\\(f'Collection nicht vorhanden \\(OK\\): {e}'\\)\n\")",
       "Bash(/opt/fonds-mcp/venv/bin/python3 scraper.py 2>&1)",
-      "Bash(systemctl is-active:*)"
+      "Bash(systemctl is-active:*)",
+      "Bash(source venv/bin/activate)",
+      "Bash(python3 -c \":*)",
+      "Bash(python3 scraper.py)"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /opt/fonds-mcp && git add -A && git diff --cached --quiet || (git commit -m \"auto: update after iteration\" && git push) 2>/dev/null || true",
+            "statusMessage": "Pushing to GitHub..."
+          }
+        ]
+      }
     ]
   }
 }

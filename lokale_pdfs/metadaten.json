@@ -47,5 +47,23 @@
     "typ": "zertifikat",
     "datei": "ZinsFix Express Step Down ST 4_26_30_mit ETF.pdf",
     "emittent": "DZ BANK AG"
+  },
+  {
+    "name": "IndexKlassik mit Kapitalschutz 108 ST 3 26/32: Basiswert EURO STOXX 50",
+    "isin": "DE000DU7MPR2",
+    "wkn": "DU7MPR",
+    "risikoklasse": 2,
+    "typ": "zertifikat",
+    "datei": "IndexKlassik mit Kapitalschutz_25032026_170346.pdf",
+    "emittent": "DZ BANK AG"
+  },
+  {
+    "name": "Kombi ZinsFix Express StepDown 3 26/29: Basiswert EURO STOXX 50 (ETF-Liefermöglichkeit)",
+    "isin": "DE000DU7MPH3",
+    "wkn": "DU7MPH",
+    "risikoklasse": 3,
+    "typ": "zertifikat",
+    "datei": "Kombi Zinsfix_25032026_170254.pdf",
+    "emittent": "DZ BANK AG"
   }
 ]
